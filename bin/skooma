@@ -1,0 +1,43 @@
+#!/usr/bin/env lua
+
+local skooma = require "skooma"
+
+local params do
+	local arrr = require 'arrr'
+	local parse = arrr {
+		{ "Print to standard output", "--stdout" };
+	}
+	params = parse { ... }
+end
+
+for _, param in ipairs(params) do
+	local skooma_env = skooma.html
+
+	local name
+	if param:find(".yue$") then
+		name = param:gsub(".yue$", ".tmp.lua")
+		os.execute(string.format("yue %s -o %s > /dev/null", param, name))
+	else
+		param = name
+	end
+
+	local env = setmetatable({}, {__index = function(_, key)
+		return _G[key] or skooma_env[key]
+	end})
+
+	local code = loadfile(name, "bt", env)
+	if name ~= param then
+		os.remove(name)
+	end
+
+	if code then
+		if params.stdout then
+			print(tostring(code()))
+		else
+			local file, msg = io.open(param:gsub(".%a*$", ".html"), "w")
+			if file then
+				file:write(tostring(code()))
+			end
+		end
+	end
+end
